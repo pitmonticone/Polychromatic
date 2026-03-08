@@ -1098,7 +1098,6 @@ private lemma case2b_odd_ne_one (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     (i : ZMod d₁) (j : ZMod e₁) (hi : i.val % 2 = 1) :
     case2b_coloring d₁ e₁ (i, j) ≠ 1 := by
   simp only [case2b_coloring]
-  have : ¬ (i.val % 2 = 0) := by omega
   split_ifs <;> grind [Fin.ext_iff]
 
 -- Lemma 3: Every consecutive pair on an even cycle contains color 1.
@@ -1108,8 +1107,8 @@ private lemma case2b_even_has_one (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     case2b_coloring d₁ e₁ (i, j) = 1 ∨ case2b_coloring d₁ e₁ (i, j + 1) = 1 := by
   simp only [case2b_coloring, hi, ↓reduceIte]
   have hj := j.val_lt (n := e₁)
-  have hj1 := zmod_val_add_one e₁ he₁ j
-  rw [show (j + 1).val = if j.val + 1 < e₁ then j.val + 1 else 0 from hj1]
+  rw [show (j + 1).val = if j.val + 1 < e₁ then j.val + 1 else 0
+    from zmod_val_add_one e₁ he₁ j]
   split_ifs <;> (first | left; grind [Fin.ext_iff] | right; grind [Fin.ext_iff])
 
 -- Lemma 4: Every consecutive pair on an odd cycle contains color 2.
@@ -1118,10 +1117,9 @@ private lemma case2b_odd_has_two (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     (i : ZMod d₁) (j : ZMod e₁) (hi : i.val % 2 = 1) :
     case2b_coloring d₁ e₁ (i, j) = 2 ∨ case2b_coloring d₁ e₁ (i, j + 1) = 2 := by
   simp only [case2b_coloring]
-  have : ¬ (i.val % 2 = 0) := by omega
   have hj := j.val_lt (n := e₁)
-  have hj1 := zmod_val_add_one e₁ he₁ j
-  rw [show (j + 1).val = if j.val + 1 < e₁ then j.val + 1 else 0 from hj1]
+  rw [show (j + 1).val = if j.val + 1 < e₁ then j.val + 1 else 0
+    from zmod_val_add_one e₁ he₁ j]
   split_ifs <;> (first | left; grind [Fin.ext_iff] | right; grind [Fin.ext_iff])
 
 -- Lemma 5: Even pair is {1,1} only at j = e₁ − 2.
@@ -1149,16 +1147,30 @@ private lemma case2b_odd_degenerate_pos (d₁ e₁ : ℕ) [NeZero d₁] [NeZero 
   rw [zmod_val_add_one e₁ (by omega) j] at h2
   split_ifs at h1 h2 <;> grind
 
--- Fin 3 helpers for Case 2b.
 private lemma case2b_fin3_eq_one {a : Fin 3} (h0 : a ≠ 0) (h2 : a ≠ 2) : a = 1 := by
   fin_cases a <;> simp_all
 private lemma case2b_fin3_eq_two {a : Fin 3} (h0 : a ≠ 0) (h1 : a ≠ 1) : a = 2 := by
   fin_cases a <;> simp_all
 
--- Lemma 9: Coverage — any 2×2 block covers all 3 colors.
--- Generalized for independent j₁, j₂ with compatibility constraints.
--- The compatibility says degenerate positions can't coincide:
--- odd-degenerate at j=0 and even-degenerate at j=e₁-2 are incompatible.
+-- When 0 is absent from all four positions, even rows are all-1 and odd rows are all-2,
+-- forcing degenerate positions to coincide — contradiction.
+private lemma case2b_zero_appears (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
+    (he₁_odd : Odd e₁) (he₁ : e₁ ≥ 3)
+    (ie : ZMod d₁) (je : ZMod e₁) (hie : ie.val % 2 = 0)
+    (io : ZMod d₁) (jo : ZMod e₁) (hio : io.val % 2 = 1)
+    (hne0 : case2b_coloring d₁ e₁ (ie, je) ≠ 0)
+    (hne1 : case2b_coloring d₁ e₁ (ie, je + 1) ≠ 0)
+    (hne2 : case2b_coloring d₁ e₁ (io, jo) ≠ 0)
+    (hne3 : case2b_coloring d₁ e₁ (io, jo + 1) ≠ 0)
+    (hcompat : je.val = e₁ - 2 → jo.val ≠ 0) : False := by
+  have hev1 := case2b_fin3_eq_one hne0 (case2b_even_ne_two d₁ e₁ ie je hie)
+  have hev2 := case2b_fin3_eq_one hne1 (case2b_even_ne_two d₁ e₁ ie (je + 1) hie)
+  have hod1 := case2b_fin3_eq_two hne2 (case2b_odd_ne_one d₁ e₁ io jo hio)
+  have hod2 := case2b_fin3_eq_two hne3 (case2b_odd_ne_one d₁ e₁ io (jo + 1) hio)
+  exact hcompat (case2b_even_degenerate_pos d₁ e₁ he₁ ie je hie hev1 hev2)
+    (case2b_odd_degenerate_pos d₁ e₁ he₁_odd he₁ io jo hio hod1 hod2)
+
+-- Coverage: any 2×2 block covers all 3 colors.
 private lemma case2b_coverage_gen (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     (hd₁_even : Even d₁) (he₁_odd : Odd e₁) (he₁ : e₁ ≥ 3)
     (i : ZMod d₁) (j₁ j₂ : ZMod e₁)
@@ -1177,25 +1189,12 @@ private lemma case2b_coverage_gen (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     have hi : i.val % 2 = 0 := by omega
     have hi1 : (i + 1).val % 2 = 1 := by omega
     fin_cases k
-    · -- k = 0: by contradiction via degenerate position argument
-      by_contra h_not
-      push_neg at h_not
-      have hev1 : case2b_coloring d₁ e₁ (i, j₁) = 1 :=
-        case2b_fin3_eq_one (fun h => h_not.1 h.symm)
-          (case2b_even_ne_two d₁ e₁ i j₁ hi)
-      have hev2 : case2b_coloring d₁ e₁ (i, j₁ + 1) = 1 :=
-        case2b_fin3_eq_one (fun h => h_not.2.1 h.symm)
-          (case2b_even_ne_two d₁ e₁ i (j₁ + 1) hi)
-      have hod1 : case2b_coloring d₁ e₁ (i + 1, j₂) = 2 :=
-        case2b_fin3_eq_two (fun h => h_not.2.2.1 h.symm)
-          (case2b_odd_ne_one d₁ e₁ (i + 1) j₂ hi1)
-      have hod2 : case2b_coloring d₁ e₁ (i + 1, j₂ + 1) = 2 :=
-        case2b_fin3_eq_two (fun h => h_not.2.2.2 h.symm)
-          (case2b_odd_ne_one d₁ e₁ (i + 1) (j₂ + 1) hi1)
-      have hj1_eq := case2b_even_degenerate_pos d₁ e₁ he₁ i j₁ hi hev1 hev2
-      have hj2_eq := case2b_odd_degenerate_pos d₁ e₁ he₁_odd he₁
-        (i + 1) j₂ hi1 hod1 hod2
-      exact absurd hj1_eq (h_compat' hj2_eq)
+    · -- k = 0: by contradiction
+      by_contra h_not; push_neg at h_not
+      exact case2b_zero_appears d₁ e₁ he₁_odd he₁ i j₁ hi (i + 1) j₂ hi1
+        (fun h => h_not.1 h.symm) (fun h => h_not.2.1 h.symm)
+        (fun h => h_not.2.2.1 h.symm) (fun h => h_not.2.2.2 h.symm)
+        (fun hje hjo => h_compat' hjo hje)
     · -- k = 1: appears in even row
       rcases case2b_even_has_one d₁ e₁ he₁_ge2 i j₁ hi with h | h
       · exact Or.inl h.symm
@@ -1209,23 +1208,11 @@ private lemma case2b_coverage_gen (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
     have hi1 : (i + 1).val % 2 = 0 := by omega
     fin_cases k
     · -- k = 0: by contradiction
-      by_contra h_not
-      push_neg at h_not
-      have hod1 : case2b_coloring d₁ e₁ (i, j₁) = 2 :=
-        case2b_fin3_eq_two (fun h => h_not.1 h.symm)
-          (case2b_odd_ne_one d₁ e₁ i j₁ hi)
-      have hod2 : case2b_coloring d₁ e₁ (i, j₁ + 1) = 2 :=
-        case2b_fin3_eq_two (fun h => h_not.2.1 h.symm)
-          (case2b_odd_ne_one d₁ e₁ i (j₁ + 1) hi)
-      have hev1 : case2b_coloring d₁ e₁ (i + 1, j₂) = 1 :=
-        case2b_fin3_eq_one (fun h => h_not.2.2.1 h.symm)
-          (case2b_even_ne_two d₁ e₁ (i + 1) j₂ hi1)
-      have hev2 : case2b_coloring d₁ e₁ (i + 1, j₂ + 1) = 1 :=
-        case2b_fin3_eq_one (fun h => h_not.2.2.2 h.symm)
-          (case2b_even_ne_two d₁ e₁ (i + 1) (j₂ + 1) hi1)
-      have hj1_eq := case2b_odd_degenerate_pos d₁ e₁ he₁_odd he₁ i j₁ hi hod1 hod2
-      have hj2_eq := case2b_even_degenerate_pos d₁ e₁ he₁ (i + 1) j₂ hi1 hev1 hev2
-      exact absurd hj2_eq (h_compat hj1_eq)
+      by_contra h_not; push_neg at h_not
+      exact case2b_zero_appears d₁ e₁ he₁_odd he₁ (i + 1) j₂ hi1 i j₁ hi
+        (fun h => h_not.2.2.1 h.symm) (fun h => h_not.2.2.2 h.symm)
+        (fun h => h_not.1 h.symm) (fun h => h_not.2.1 h.symm)
+        (fun hje hjo => h_compat hjo hje)
     · -- k = 1: appears in even row (i+1)
       rcases case2b_even_has_one d₁ e₁ he₁_ge2 (i + 1) j₂ hi1 with h | h
       · exact Or.inr (Or.inr (Or.inl h.symm))
@@ -1433,16 +1420,10 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     have hd₂_dvd_diff : d₂ ∣ (e₁ - 2) :=
       (ZMod.natCast_eq_zero_iff _ _).mp hval_eq.symm
     have hd₂_dvd_2 : d₂ ∣ 2 := by
-      have h1 : (d₂ : ℤ) ∣ ↑e₁ := Int.natCast_dvd_natCast.mpr hd₂_dvd_e₁
-      have h2 : (d₂ : ℤ) ∣ ↑(e₁ - 2) := Int.natCast_dvd_natCast.mpr hd₂_dvd_diff
-      have h3 := dvd_sub h1 h2
-      have h4 : (↑e₁ : ℤ) - ↑(e₁ - 2) = 2 := by omega
-      rw [h4] at h3; exact Int.natCast_dvd_natCast.mp h3
-    have hd₂_eq2 : d₂ = 2 := by
-      have := Nat.le_of_dvd (by omega) hd₂_dvd_2; omega
-    -- d₂ = 2 divides e₁ → Even e₁. But e₁ is odd: contradiction.
+      have := Nat.dvd_sub' hd₂_dvd_e₁ hd₂_dvd_diff
+      rwa [show e₁ - (e₁ - 2) = 2 from by omega] at this
     obtain ⟨k, hk⟩ := hd₂_dvd_e₁; obtain ⟨l, hl⟩ := he1_odd
-    rw [hd₂_eq2] at hk; omega
+    have := Nat.le_of_dvd (by omega) hd₂_dvd_2; omega
   -- π(n) and π(n+(b-a)) give the same ZMod d₂ value
   have hπ_eq : π (n + ↑(b - a)) = π n := by
     simp only [π, map_add, map_intCast]
@@ -1457,12 +1438,10 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     exact hπ_φ _ j'
   have hπ_jj' : (j.val : ZMod d₂) * π (↑b) = (j'.val : ZMod d₂) * π (↑b) :=
     hπn.symm.trans hπn'
-  have h_compat : j.val = 0 → j'.val ≠ e₁ - 2 := fun hj hj' =>
-    h_degenerate_false j j' hπ_jj' hj hj'
-  have h_compat' : j'.val = 0 → j.val ≠ e₁ - 2 := fun hj' hj =>
-    h_degenerate_false j' j hπ_jj'.symm hj' hj
-  rcases case2b_coverage_gen d₁ e₁ hd1_even he1_odd he₁_ge3
-      i j j' h_compat h_compat' k with h | h | h | h
+  rcases case2b_coverage_gen d₁ e₁ hd1_even he1_odd he₁_ge3 i j j'
+      (fun hj hj' => h_degenerate_false j j' hπ_jj' hj hj')
+      (fun hj' hj => h_degenerate_false j' j hπ_jj'.symm hj' hj)
+      k with h | h | h | h
   · exact ⟨0, by simp, by rw [add_zero, hχ_n, h]⟩
   · exact ⟨↑b, by simp, by rw [hχ_nb, h]⟩
   · exact ⟨↑(b - a), by simp, by rw [hχ_nba, h]⟩
