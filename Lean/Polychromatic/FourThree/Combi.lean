@@ -1243,7 +1243,8 @@ private lemma basePattern_consec_boundary {e₁ j : ℕ}
     push_neg at hj1_wrap
     have hj_eq : j = e₁ - 1 := by omega
     subst hj_eq
-    rw [show e₁ - 1 + 1 = e₁ from by omega, Nat.mod_self] at hdiff ⊢
+    have : e₁ - 1 + 1 = e₁ := by omega
+    rw [this, Nat.mod_self] at hdiff ⊢
     simp only [basePattern, intervalColors]
     split_ifs at hdiff ⊢ with h1 h2 h3 h4 h5 h6 h7 h8 h9
     all_goals (first | omega | (ext x; fin_cases x <;>
@@ -1262,7 +1263,8 @@ private lemma basePattern_consec_pair {e₁ j : ℕ}
       push_neg at h
       have : j = e₁ - 1 := by omega
       subst this
-      rw [show e₁ - 1 + 1 = e₁ from by omega, Nat.mod_self] at hsame
+      have : e₁ - 1 + 1 = e₁ := by omega
+      rw [this, Nat.mod_self] at hsame
       simp only [whichInterval, case2d_u, case2d_v] at hsame
       split_ifs at hsame <;> omega
     rw [Nat.mod_eq_of_lt hj1]
@@ -1310,10 +1312,8 @@ private lemma basePattern_rotation_covers {e₁ j : ℕ} (he : Odd e₁) (hge : 
   have h1 := basePattern_consec_pair he hge hj
   have hjr : (j + r) % e₁ < e₁ := Nat.mod_lt _ he₁_pos
   have h2 := basePattern_consec_pair he hge hjr
-  -- Rewrite ((j + r) % e₁ + 1) % e₁ = (j + r + 1) % e₁
-  have hmod : ((j + r) % e₁ + 1) % e₁ = (j + r + 1) % e₁ := by
-    conv_rhs => rw [show j + r + 1 = (j + r) + 1 from by ring]
-    rw [Nat.add_mod, Nat.mod_mod_of_dvd _ (dvd_refl _), ← Nat.add_mod]
+  have hmod : ((j + r) % e₁ + 1) % e₁ = (j + r + 1) % e₁ :=
+    Nat.mod_add_mod (j + r) e₁ 1
   rw [hmod] at h2
   have hcov := intervalColors_union_covers hI k
   simp only [Finset.mem_insert, Finset.mem_singleton]
@@ -1337,11 +1337,9 @@ private lemma case2d_addOrderOf_b {m : ℕ} {b : ℤ} {d₁ : ℕ} (hm : 0 < m)
     rw [ZMod.addOrderOf_coe b.natAbs (by omega), Nat.gcd_comm, hd1_def]
   rcases Int.natAbs_eq b with h | h
   · have : (b : ZMod m) = (b.natAbs : ZMod m) := by
-      show Int.cast b = Nat.cast b.natAbs
       conv_lhs => rw [h]; rw [Int.cast_natCast]
     rw [this]; exact key
   · have : (b : ZMod m) = -(b.natAbs : ZMod m) := by
-      show Int.cast b = -Nat.cast b.natAbs
       conv_lhs => rw [h]; rw [Int.cast_neg, Int.cast_natCast]
     rw [this, addOrderOf_neg]; exact key
 
@@ -1497,7 +1495,7 @@ private lemma case2d_wrap_shift {m : ℕ} {a b : ℤ} {d₁ e₁ : ℕ}
   have hφq := Equiv.apply_symm_apply Φ ((d₁ : ℕ) • ((b - a : ℤ) : ZMod m))
   change case2d_orbitMap m a b d₁ e₁ q = _ at hφq
   simp only [case2d_orbitMap] at hφq
-  rw [show q = (q.1, q.2) from (Prod.eta q).symm] at hφq
+  rw [(Prod.eta q).symm] at hφq
   simp only [hq_i, Fin.val_zero, Nat.cast_zero, zero_mul, zero_add] at hφq
   simp only [nsmul_eq_mul] at hφq ⊢
   exact hφq.symm
@@ -1530,7 +1528,7 @@ private lemma case2d_shift_ba_wrap {m : ℕ} {a b : ℤ} {d₁ e₁ : ℕ}
   rw [← add_mul, ← Nat.cast_add (k₀.val) (j.val), ← nsmul_eq_mul, Nat.add_comm]
   -- Step 4: reduce (j+k₀) • b mod e₁ using he1_b_zero
   set n := j.val + k₀.val
-  conv_lhs => rw [show n = e₁ * (n / e₁) + n % e₁ from (Nat.div_add_mod n e₁).symm]
+  conv_lhs => rw [(Nat.div_add_mod n e₁).symm]
   rw [add_nsmul, mul_nsmul, he1_b_zero, smul_zero, zero_add, nsmul_eq_mul]
 
 /-- Given d₁ ≥ 3 values each in [u, e₁-u] can sum to any target mod e₁,
@@ -1570,8 +1568,7 @@ private lemma case2d_rotation_sum_exists {e₁ d₁ : ℕ}
   let f : Fin d₁ → ℕ := fun i =>
     if i.val < q then e₁ - u else if i.val = q then u + r else u
   refine ⟨f, fun i => ?_, ?_⟩
-  · show u ≤ f i ∧ f i ≤ e₁ - u
-    simp only [f]; split_ifs <;> omega
+  · simp only [f]; split_ifs <;> omega
   · let g : Fin d₁ → ℕ := fun i =>
       if i.val < q then w else if i.val = q then r else 0
     have hfg : ∀ i : Fin d₁, f i = u + g i := by
@@ -1590,16 +1587,17 @@ private lemma case2d_rotation_sum_exists {e₁ d₁ : ℕ}
         congr 1
         trans (Finset.image Fin.val (Finset.univ.filter (fun i : Fin d₁ => i.val < q))).card
         · rw [Finset.card_image_of_injective _ Fin.val_injective]
-        · rw [show Finset.image Fin.val (Finset.univ.filter (fun i : Fin d₁ => i.val < q)) =
-              Finset.range q from by
+        · have : Finset.image Fin.val (Finset.univ.filter (fun i : Fin d₁ => i.val < q)) =
+              Finset.range q := by
             ext j; simp only [mem_image, mem_filter, mem_univ, true_and, mem_range]; constructor
             · rintro ⟨i, hi, rfl⟩; exact hi
-            · intro hj; exact ⟨⟨j, lt_trans hj hq_lt⟩, hj, rfl⟩]
-          exact Finset.card_range q
+            · intro hj; exact ⟨⟨j, lt_trans hj hq_lt⟩, hj, rfl⟩
+          rw [this]; exact Finset.card_range q
       · rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const, smul_eq_mul]
         have : (Finset.univ.filter (fun i : Fin d₁ => i.val = q)).card = 1 := by
-          rw [show Finset.univ.filter (fun i : Fin d₁ => i.val = q) = {⟨q, hq_lt⟩} from by
-            ext i; simp [Fin.ext_iff]]
+          have : Finset.univ.filter (fun i : Fin d₁ => i.val = q) = {⟨q, hq_lt⟩} := by
+            ext i; simp [Fin.ext_iff]
+          rw [this]
           exact Finset.card_singleton _
         rw [this, one_mul]
     rw [hsum_f, hsum_g, Nat.mul_comm q w, hqr]
@@ -1659,9 +1657,8 @@ private lemma pos_shift_one {n : ℕ} [NeZero n] (j : Fin n) (c : ℕ) :
 /-- (j + (S + V) % n) % n = ((j + S % n) % n + V) % n -/
 private lemma pos_shift_succ' (j S V n : ℕ) :
     (j + (S + V) % n) % n = ((j + S % n) % n + V) % n := by
-  rw [Nat.add_mod_mod, show j + (S + V) = j + S + V from by omega,
-      ← Nat.mod_add_mod (j + S) n V,
-      show (j + S) % n = (j + S % n) % n from (Nat.add_mod_mod j S n).symm]
+  have h1 : j + (S + V) = j + S + V := by omega
+  rw [Nat.add_mod_mod, h1, ← Nat.mod_add_mod (j + S) n V, (Nat.add_mod_mod j S n).symm]
 
 /-- Wrap case: if (S + V) % n = k₀ % n, then
     (j + k₀) % n = ((j + S % n) % n + V) % n -/
