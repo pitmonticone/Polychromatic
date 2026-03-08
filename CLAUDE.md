@@ -144,6 +144,38 @@ When golfing Lean proofs, the following approaches work best (ordered by impact)
 7. **Use the LSP, not `lake env lean`** — `lean_diagnostic_messages` is much faster for verifying individual edits than rebuilding the whole file.
 8. **Use `wlog` for symmetric cases** — when two branches of a case split have identical proof structure with swapped variables, `wlog h : P with H` followed by `exact (H ...).symm` eliminates one branch entirely. Applied in `case2d_orbitMap_j_eq`.
 
+## Structural Simplification
+
+Beyond tactic-level golfing, look for higher-level structural improvements:
+
+### Deduplicating dispatch logic
+
+When a proof dispatches into subcases and then a branch swaps parameters and re-dispatches identically, extract the shared dispatch as a helper or use `suffices`:
+
+- **`suffices` for inline dedup** — when the duplicated dispatch is inside one proof, use `suffices dispatch : ∀ (a' b' : ℤ), ... → Result by ...` to state the shared logic once, then have each branch (original vs swapped) call `dispatch` with appropriate arguments. This is better than extracting a separate lemma when the dispatch needs many hypotheses from the enclosing proof.
+- **Separate helper lemma for cross-proof dedup** — when the same dispatch pattern appears in multiple top-level lemmas, extract a `private lemma`. But be cautious: if the dispatch body is complex (e.g. case 2c's `3 ∣ e₁` logic with nested swaps), a `suffices` inline is often cleaner than a helper with many parameters.
+
+### Sharing infrastructure across cases
+
+When multiple case lemmas (e.g. cases 2a, 2c, 2d) use the same underlying construction:
+1. **Extract shared definitions** — `orbitMap`, `addOrderOf_b_eq`, `b_zero_mod_d1`, `ba_coprime_d1`, `orbitMap_bijective` are shared across all multi-cycle cases.
+2. **Use the most general type** — prefer `ZMod d₁` over `Fin d₁` for orbit map coordinates. While definitionally equal for positive `d₁`, `ZMod` has better algebraic API (`ZMod.val_add`, `ZMod.val_add_one`, `ZMod.castHom`) and is the natural choice for modular arithmetic proofs.
+3. **Keep pure-arithmetic helpers type-agnostic** — functions like `case2c_pattern` that only use `.val` (the underlying `ℕ`) should take `ℕ` directly rather than `Fin` or `ZMod`. This avoids constructor syntax issues (`⟨v, hv⟩` doesn't work for `ZMod n` with variable `n`) and makes the function usable from any coordinate system.
+
+### ZMod vs Fin pitfalls
+
+- **`ZMod n` is NOT `Fin n` for variable `n`** — `ZMod` is defined by `match` on `n` (`ZMod 0 = ℤ`, `ZMod (n+1) = Fin (n+1)`). For variable `n`, Lean cannot reduce this, so:
+  - Anonymous constructor `⟨v, hv⟩` does NOT work for `ZMod n`
+  - `ext` tactic does NOT work for `ZMod n` (no extensionality theorem)
+  - Use `ZMod.val_injective` instead of `ext` for equality proofs
+  - Use `Nat.cast` or helper functions instead of `⟨v, hv⟩`
+- **API differences** — `Fin.val_add` vs `ZMod.val_add`, `Fin.val_one'` vs `ZMod.val_one_eq_one_mod`. When porting code from `Fin` to `ZMod`, update all lemma references.
+- **`ZMod.val_add_one`** — useful helper: `(x + 1).val = (x.val + 1) % n`. Combines `ZMod.val_add` and `ZMod.val_one_eq_one_mod` with `Nat.add_mod_mod`.
+
+### Wrapper lemma elimination
+
+- **Remove trivial wrappers** — if `lemma foo ... := bar ...` is a one-line call to another lemma with the same arguments, consider inlining `bar` at `foo`'s call sites. But keep the wrapper if it provides a cleaner API boundary or is referenced from outside the file.
+
 ## Commit Conventions
 
 - Do not include Claude session URLs in commit messages
