@@ -160,9 +160,8 @@ private lemma hasPolychromColouring_of_cyclic {m : ℕ} [NeZero m] [Fact (1 < m)
     (c : ℕ → Fin 3) (S : Finset (ZMod m))
     (hpoly : ∀ n : ZMod m, ∀ k : Fin 3, ∃ a ∈ S, c (n + a).val = k) :
     HasPolychromColouring (Fin 3) S :=
-  ⟨fun x => c x.val, fun n k => by
-    obtain ⟨a, ha, heq⟩ := hpoly n k
-    exact ⟨a, ha, by change c (n + a).val = k; exact heq⟩⟩
+  ⟨fun x => c x.val, fun n k =>
+    let ⟨a, ha, heq⟩ := hpoly n k; ⟨a, ha, heq⟩⟩
 
 /-- Key: offsets in a list are bounded by foldr max. -/
 private lemma le_foldr_max {offsets : List ℕ} {s : ℕ} (hs : s ∈ offsets) :
@@ -2399,30 +2398,26 @@ lemma case_two_e1_even (hm : m ≥ 289)
   have he1_b : e₁ • (b : ZMod m) = 0 := hord ▸ addOrderOf_nsmul_eq_zero _
   -- Define the cycle map φ = orbitMap and derive bijectivity from shared infrastructure
   let φ := orbitMap m a b d₁ e₁
-  have hφ_add_b : ∀ i : ZMod d₁, ∀ j : ZMod e₁,
-      φ (i, j + 1) = φ (i, j) + ↑b := by
-    intro i j; exact (orbitMap_shift_b he1_b (i, j)).symm
-  -- φ is bijective (from shared orbitMap infrastructure)
+  have hφ_add_b (i : ZMod d₁) (j : ZMod e₁) :
+      φ (i, j + 1) = φ (i, j) + ↑b :=
+    (orbitMap_shift_b he1_b (i, j)).symm
   let Φ := Equiv.ofBijective φ
     (orbitMap_bijective hm_eq hd₁_dvd hb_zero hba_unit hord)
-  -- Cycle index function α : ZMod m → ZMod d₁
   obtain ⟨u_ba, hu_ba⟩ := hba_unit
   let α : ZMod m → ZMod d₁ :=
     fun x => ZMod.castHom hd₁_dvd (ZMod d₁) x * u_ba⁻¹
   have hα_ba : ∀ x, α (x + ↑(b - a)) = α x + 1 :=
     cycle_index_shift_ba hd₁_dvd u_ba hu_ba
-  have hα_φ : ∀ i : ZMod d₁, ∀ j : ZMod e₁, α (φ (i, j)) = i :=
-    orbitMap_cycle_index hd₁_dvd hb_zero u_ba hu_ba
   have hΦ_add_b := equiv_symm_shift_b Φ hφ_add_b
-  have hΦ_cycle := equiv_symm_fst_eq Φ α hα_φ
+  have hΦ_cycle := equiv_symm_fst_eq Φ α
+    (orbitMap_cycle_index hd₁_dvd hb_zero u_ba hu_ba)
   have hd₁_ge2 : d₁ ≥ 2 := by grind
-  have hparity : ∀ j : ZMod e₁, j.val % 2 ≠ (j + 1).val % 2 :=
-    parity_flip_even e₁ he1_even he₁_ge2
-  have hΦ_cycle_shift : ∀ x : ZMod m,
-      (Φ.symm (x + ↑(b - a))).1 = (Φ.symm x).1 + 1 := fun x => by
+  have hΦ_cycle_shift (x : ZMod m) :
+      (Φ.symm (x + ↑(b - a))).1 = (Φ.symm x).1 + 1 := by
     rw [hΦ_cycle, hα_ba, ← hΦ_cycle]
   exact orbit_coloring_polychrom Φ hΦ_add_b hΦ_cycle_shift (cycle_coloring d₁ e₁)
-    (fun n k => color_covers_even d₁ e₁ hd₁_ge2 hparity _ _ _ k)
+    (fun n k => color_covers_even d₁ e₁ hd₁_ge2
+      (parity_flip_even e₁ he1_even he₁_ge2) _ _ _ k)
 
 /-! #### Case (2b): d₁ even, e₁ odd
 
@@ -2603,13 +2598,11 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     Nat.div_pos (Nat.le_of_dvd (by grind) hd₁_dvd) hd₁_pos
   have he₁_ge3 : e₁ ≥ 3 := by
     by_contra h; push_neg at h
-    rcases (by grind : e₁ = 1 ∨ e₁ = 2) with he | he
-    · have hba_dvd_d₁ : Nat.gcd (b - a).natAbs m ∣ d₁ := by
-        rw [hm_eq, he, mul_one]; exact Nat.gcd_dvd_right _ _
-      have : Nat.gcd (b - a).natAbs m = 1 :=
-        Nat.eq_one_of_dvd_one (h_gcd_coprime ▸ Nat.dvd_gcd hba_dvd_d₁ (dvd_refl _))
-      grind
-    · grind
+    have : e₁ = 1 := by grind
+    have : Nat.gcd (b - a).natAbs m ∣ d₁ := by
+      rw [hm_eq, this, mul_one]; exact Nat.gcd_dvd_right _ _
+    have := Nat.eq_one_of_dvd_one (h_gcd_coprime ▸ Nat.dvd_gcd this (dvd_refl _))
+    grind
   haveI : NeZero m := ⟨by grind⟩
   haveI : NeZero d₁ := ⟨by grind⟩
   haveI : NeZero e₁ := ⟨by grind⟩
@@ -2630,19 +2623,17 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
   let φ := orbitMap m a b d₁ e₁
   let Φ := Equiv.ofBijective φ
     (orbitMap_bijective hm_eq hd₁_dvd hb_zero hba_unit hord)
-  have hφ_add_b : ∀ i : ZMod d₁, ∀ j : ZMod e₁,
-      φ (i, j + 1) = φ (i, j) + ↑b := by
-    intro i j; exact (orbitMap_shift_b he1_b (i, j)).symm
-  -- Cycle index function α : ZMod m → ZMod d₁
+  have hφ_add_b (i : ZMod d₁) (j : ZMod e₁) :
+      φ (i, j + 1) = φ (i, j) + ↑b :=
+    (orbitMap_shift_b he1_b (i, j)).symm
   obtain ⟨u_ba, hu_ba⟩ := hba_unit
   let α : ZMod m → ZMod d₁ :=
     fun x => ZMod.castHom hd₁_dvd (ZMod d₁) x * u_ba⁻¹
   have hα_ba : ∀ x, α (x + ↑(b - a)) = α x + 1 :=
     cycle_index_shift_ba hd₁_dvd u_ba hu_ba
-  have hα_φ : ∀ i : ZMod d₁, ∀ j : ZMod e₁, α (φ (i, j)) = i :=
-    orbitMap_cycle_index hd₁_dvd hb_zero u_ba hu_ba
   have hΦ_add_b := equiv_symm_shift_b Φ hφ_add_b
-  have hΦ_cycle := equiv_symm_fst_eq Φ α hα_φ
+  have hΦ_cycle := equiv_symm_fst_eq Φ α
+    (orbitMap_cycle_index hd₁_dvd hb_zero u_ba hu_ba)
   -- d₂ properties for the compatibility argument
   set d₂ := Nat.gcd (b - a).natAbs m
   have hd₂_dvd : d₂ ∣ m := Nat.gcd_dvd_right _ _
@@ -2689,10 +2680,9 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     have hd₂_eq2 : d₂ = 2 := by have := Nat.le_of_dvd (by grind) hd₂_dvd_2; grind
     obtain ⟨k, hk⟩ := hd₂_dvd_e₁; obtain ⟨l, hl⟩ := he1_odd; grind
   -- Define coloring and prove polychromaticity via orbit helper
-  have hΦ_cycle_shift : ∀ x : ZMod m,
-      (Φ.symm (x + ↑(b - a))).1 = (Φ.symm x).1 + 1 := fun x => by
+  have hΦ_cycle_shift (x : ZMod m) :
+      (Φ.symm (x + ↑(b - a))).1 = (Φ.symm x).1 + 1 := by
     rw [hΦ_cycle, hα_ba, ← hΦ_cycle]
-  -- π(n) and π(n+(b-a)) give the same ZMod d₂ value
   have hπ_eq : ∀ n : ZMod m, π (n + ↑(b - a)) = π n := fun n => by
     simp only [π, map_add, map_intCast]
     rw [(ZMod.intCast_zmod_eq_zero_iff_dvd _ _).mpr hd₂_dvd_ba, add_zero]
@@ -2700,15 +2690,11 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     (fun n k => by
       set p := Φ.symm n; set j := p.2
       set j' := (Φ.symm (n + ↑(b - a))).2
-      -- π(n) and π(n+(b-a)) give the same ZMod d₂ value
-      have hπ_eq : π (n + ↑(b - a)) = π n := by
-        simp only [π, map_add, map_intCast]
-        rw [(ZMod.intCast_zmod_eq_zero_iff_dvd _ _).mpr hd₂_dvd_ba, add_zero]
       have hπn : π n = (j.val : ZMod d₂) * π (↑b) := by
         have : n = Φ p := (Equiv.apply_symm_apply Φ n).symm
         conv_lhs => rw [this]; exact hπ_φ p.1 j
       have hπn' : π n = (j'.val : ZMod d₂) * π (↑b) := by
-        rw [← hπ_eq]
+        rw [← hπ_eq n]
         have : n + ↑(b - a) = Φ (Φ.symm (n + ↑(b - a))) :=
           (Equiv.apply_symm_apply Φ _).symm
         conv_lhs => rw [this]; exact hπ_φ _ j'
