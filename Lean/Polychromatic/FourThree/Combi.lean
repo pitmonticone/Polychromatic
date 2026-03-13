@@ -147,21 +147,18 @@ private lemma frobenius_consec {rA m : ℕ} (hrA : 1 < rA) (hm : m ≥ rA * (rA 
     (by rw [(Nat.coprime_self_add_right.mpr (Nat.coprime_one_right _)).gcd_eq_one]; exact one_dvd _)
     (by grind [Nat.pred_eq_sub_one, mul_comm rA (rA - 1)])
   refine ⟨a, b, by grind [mul_comm a rA, mul_comm b (rA + 1)], ?_⟩
-  -- a + b = 0 → a = b = 0 → m = 0, but m ≥ rA * (rA - 1) > 0
   by_contra hle; push_neg at hle
-  have ha0 : a = 0 := by omega
-  have hb0 : b = 0 := by omega
-  subst ha0; subst hb0; simp only [zero_mul, zero_add] at hab; subst hab
-  have : 0 < rA * (rA - 1) := Nat.mul_pos (by omega) (by omega)
-  omega
+  have ha : a = 0 := by omega
+  have hb : b = 0 := by omega
+  subst ha hb; simp at hab; subst hab
+  exact Nat.not_le.mpr (Nat.mul_pos (by omega) (by omega)) hm
 
 /-- Bridge: a cyclic coloring function yields HasPolychromColouring. -/
 private lemma hasPolychromColouring_of_cyclic {m : ℕ} [NeZero m] [Fact (1 < m)]
     (c : ℕ → Fin 3) (S : Finset (ZMod m))
     (hpoly : ∀ n : ZMod m, ∀ k : Fin 3, ∃ a ∈ S, c (n + a).val = k) :
     HasPolychromColouring (Fin 3) S :=
-  ⟨fun x => c x.val, fun n k =>
-    let ⟨a, ha, heq⟩ := hpoly n k; ⟨a, ha, heq⟩⟩
+  ⟨fun x => c x.val, hpoly⟩
 
 /-- Key: offsets in a list are bounded by foldr max. -/
 private lemma le_foldr_max {offsets : List ℕ} {s : ℕ} (hs : s ∈ offsets) :
@@ -589,11 +586,9 @@ private lemma table1_of_blockColor (A B : List (Fin 3)) (offsets : List ℕ)
     (hm : m ≥ A.length * (A.length - 1))
     (hS : ∀ a : ZMod m, a ∈ S ↔ ∃ s ∈ offsets, (s : ZMod m) = a) :
     HasPolychromColouring (Fin 3) S := by
-  have hA_lt_m : A.length < m :=
-    calc A.length < A.length * 2 := by omega
-    _ ≤ A.length * (A.length - 1) := by gcongr; omega
-    _ ≤ m := hm
-  have hm_pos : 0 < m := by omega
+  have hA_lt_m : A.length < m := by
+    have : A.length * 2 ≤ A.length * (A.length - 1) := by gcongr; omega
+    omega
   haveI : NeZero m := ⟨by omega⟩
   haveI : Fact (1 < m) := ⟨by omega⟩
   obtain ⟨h, k, hm_eq, hhk⟩ := frobenius_consec (by omega : 1 < A.length) hm
@@ -1383,10 +1378,8 @@ private lemma succ_lt_of_idx_same (q r s p : ℕ)
     (hm_eq : m = s * q + r) (hp : p < m)
     (hsame : eqp_idx q r (p + 1) = eqp_idx q r p)
     (hidx : eqp_idx q r p < s) :
-    p + 1 < m := by
-  rcases eqp_idx_succ_lt_m m q r s p hq_pos hr_lt hm_eq hp with h | h
-  · exact h
-  · omega
+    p + 1 < m :=
+  (eqp_idx_succ_lt_m m q r s p hq_pos hr_lt hm_eq hp).elim id (by omega)
 
 /-- Subcase (1b): interval coloring strategy.
     Let s be the smallest multiple of 3 such that g > ⌈m/s⌉. Split Z_m into s
@@ -2141,17 +2134,15 @@ private lemma color_covers_even (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
   by_cases hk : k = missing_color d₁ i
   · -- k = missing_color(i), so k ≠ missing_color(i+1)
     have hk_ne : k ≠ missing_color d₁ (i + 1) := hk ▸ missing_color_ne_succ d₁ hd₁_ge2 i
-    rcases fin3_eq_of_ne (f_alt_color d₁ e₁ hparity (i + 1) j₂)
+    exact (fin3_eq_of_ne (f_alt_color d₁ e₁ hparity (i + 1) j₂)
       (f_ne_missing_color d₁ e₁ (i + 1) j₂)
-      (f_ne_missing_color d₁ e₁ (i + 1) (j₂ + 1)) hk_ne with h | h
-    · exact Or.inr (Or.inr (Or.inl h))
-    · exact Or.inr (Or.inr (Or.inr h))
+      (f_ne_missing_color d₁ e₁ (i + 1) (j₂ + 1)) hk_ne).elim
+      (fun h => .inr (.inr (.inl h))) (fun h => .inr (.inr (.inr h)))
   · -- k ≠ missing_color(i), so k appears in {f(i,j₁), f(i,j₁+1)}
-    rcases fin3_eq_of_ne (f_alt_color d₁ e₁ hparity i j₁)
+    exact (fin3_eq_of_ne (f_alt_color d₁ e₁ hparity i j₁)
       (f_ne_missing_color d₁ e₁ i j₁)
-      (f_ne_missing_color d₁ e₁ i (j₁ + 1)) hk with h | h
-    · exact Or.inl h
-    · exact Or.inr (Or.inl h)
+      (f_ne_missing_color d₁ e₁ i (j₁ + 1)) hk).elim
+      Or.inl (fun h => .inr (.inl h))
 
 private lemma ZMod.val_add_one {n : ℕ} [NeZero n] (x : ZMod n) :
     (x + 1).val = (x.val + 1) % n := by
@@ -2536,13 +2527,11 @@ private lemma case2b_coverage_gen (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
         (i + 1) j₂ hi1 hod1 hod2
       exact absurd hj1_eq (h_compat' hj2_eq)
     · -- k = 1: appears in even row
-      rcases case2b_even_has_one d₁ e₁ he₁_ge2 i j₁ hi with h | h
-      · exact Or.inl h.symm
-      · exact Or.inr (Or.inl h.symm)
+      exact (case2b_even_has_one d₁ e₁ he₁_ge2 i j₁ hi).elim
+        (fun h => Or.inl h.symm) (fun h => .inr (.inl h.symm))
     · -- k = 2: appears in odd row
-      rcases case2b_odd_has_two d₁ e₁ he₁_ge2 (i + 1) j₂ hi1 with h | h
-      · exact Or.inr (Or.inr (Or.inl h.symm))
-      · exact Or.inr (Or.inr (Or.inr h.symm))
+      exact (case2b_odd_has_two d₁ e₁ he₁_ge2 (i + 1) j₂ hi1).elim
+        (fun h => .inr (.inr (.inl h.symm))) (fun h => .inr (.inr (.inr h.symm)))
   · -- i is odd, i+1 is even
     have hi : i.val % 2 = 1 := by grind
     have hi1 : (i + 1).val % 2 = 0 := by grind
@@ -2566,13 +2555,11 @@ private lemma case2b_coverage_gen (d₁ e₁ : ℕ) [NeZero d₁] [NeZero e₁]
       have hj2_eq := case2b_even_degenerate_pos d₁ e₁ he₁ (i + 1) j₂ hi1 hev1 hev2
       exact absurd hj2_eq (h_compat hj1_eq)
     · -- k = 1: appears in even row (i+1)
-      rcases case2b_even_has_one d₁ e₁ he₁_ge2 (i + 1) j₂ hi1 with h | h
-      · exact Or.inr (Or.inr (Or.inl h.symm))
-      · exact Or.inr (Or.inr (Or.inr h.symm))
+      exact (case2b_even_has_one d₁ e₁ he₁_ge2 (i + 1) j₂ hi1).elim
+        (fun h => .inr (.inr (.inl h.symm))) (fun h => .inr (.inr (.inr h.symm)))
     · -- k = 2: appears in odd row (i)
-      rcases case2b_odd_has_two d₁ e₁ he₁_ge2 i j₁ hi with h | h
-      · exact Or.inl h.symm
-      · exact Or.inr (Or.inl h.symm)
+      exact (case2b_odd_has_two d₁ e₁ he₁_ge2 i j₁ hi).elim
+        (fun h => Or.inl h.symm) (fun h => .inr (.inl h.symm))
 
 /--
 Case 2b: $d_1$ is even and $e_1$ is odd.
@@ -2721,8 +2708,6 @@ private lemma cover_mod3_general (p₁ p₂ : Fin 3)
     k = ⟨(j₁ + 1 + p₁.val) % 3, Nat.mod_lt _ (by grind)⟩ ∨
     k = ⟨(j₂ + p₂.val) % 3, Nat.mod_lt _ (by grind)⟩ ∨
     k = ⟨(j₂ + 1 + p₂.val) % 3, Nat.mod_lt _ (by grind)⟩ := by
-  by_contra hall; push_neg at hall
-  obtain ⟨h1, h2, h3, h4⟩ := hall
   grind [Fin.ext_iff]
 
 -- Non-wrap coverage hypothesis: j₁ = j₂, patterns differ → hypothesis holds.
