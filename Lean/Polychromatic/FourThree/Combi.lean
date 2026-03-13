@@ -1768,19 +1768,22 @@ lemma case_one_div_3g (g : ℕ) (hm_eq : m = 3 * g)
   by_cases hr_lt_gm1 : r + 1 < g
   · have hcv : c v = (r % 3 + q) % 3 := hv_eq ▸ color_at q r hr_lt
     have hcvg : c (v + g) = (r % 3 + (q + 1)) % 3 := by
-      rw [show v + g = g * (q + 1) + r from by grind, color_at (q + 1) r hr_lt]
+      have : v + g = g * (q + 1) + r := by grind
+      rw [this, color_at (q + 1) r hr_lt]
     have hcvg1 : c (v + g + 1) = ((r + 1) % 3 + (q + 1)) % 3 := by
-      rw [show v + g + 1 = g * (q + 1) + (r + 1) from by grind,
-          color_at (q + 1) (r + 1) (by grind)]
+      have : v + g + 1 = g * (q + 1) + (r + 1) := by grind
+      rw [this, color_at (q + 1) (r + 1) (by grind)]
     exact endgame_witness (Nat.mod_lt _ (by grind)) 0 g (g + 1)
       (by simp) (by simp) (by simp) hcv (by grind) (by grind)
   · push_neg at hr_lt_gm1
     have hr_eq : r = g - 1 := by grind
     have hcv : c v = (2 + q) % 3 := by grind
     have hcv1 : c (v + 1) = (q + 1) % 3 := by
-      rw [show v + 1 = g * (q + 1) + 0 from by grind, color_at (q + 1) 0 hg]; grind
+      have : v + 1 = g * (q + 1) + 0 := by grind
+      rw [this, color_at (q + 1) 0 hg]; grind
     have hcvg : c (v + g) = (2 + (q + 1)) % 3 := by
-      rw [show v + g = g * (q + 1) + (g - 1) from by grind]; grind
+      have : v + g = g * (q + 1) + (g - 1) := by grind
+      rw [this]; grind
     exact endgame_witness (Nat.mod_lt _ (by grind)) 0 g 1
       (by simp) (by simp) (by simp)
       hcv (by grind) (by grind)
@@ -1816,23 +1819,27 @@ lemma case_one_div_3g3 (g : ℕ) (hm_eq : m = 3 * g + 3) (hg3 : 3 ∣ g) (hg : 0
   by_cases hrg : r = g
   · have hcv : c v = (3 - q % 3) % 3 := by grind
     have hcvg : c (v + g) = (2 + (3 - (q + 1) % 3)) % 3 := by
-      rw [show v + g = h * (q + 1) + (g - 1) from by grind,
-          color_at (q + 1) (g - 1) (by grind), ht,
-          show 3 * t - 1 = 3 * (t - 1) + 2 from by grind]; simp
+      have h1 : v + g = h * (q + 1) + (g - 1) := by grind
+      have h2 : 3 * t - 1 = 3 * (t - 1) + 2 := by grind
+      rw [h1, color_at (q + 1) (g - 1) (by grind), ht, h2]; simp
     have hcv1 : c (v + 1) = (3 - (q + 1) % 3) % 3 := by
-      rw [show v + 1 = h * (q + 1) + 0 from by grind, color_at (q + 1) 0 (by grind)]; grind
+      have : v + 1 = h * (q + 1) + 0 := by grind
+      rw [this, color_at (q + 1) 0 (by grind)]; grind
     exact endgame_witness (Nat.mod_lt _ (by grind)) 0 g 1
       (by simp) (by simp) (by simp)
       hcv (by grind) (by grind)
   · have hcv1 : c (v + 1) = ((r + 1) % 3 + (3 - q % 3)) % 3 := by
-      rw [show v + 1 = h * q + (r + 1) from by grind, color_at q (r + 1) (by grind)]
+      have : v + 1 = h * q + (r + 1) := by grind
+      rw [this, color_at q (r + 1) (by grind)]
     have hcvg1 : c (v + g + 1) = (r % 3 + (3 - (q + 1) % 3)) % 3 := by
-      rw [show v + g + 1 = h * (q + 1) + r from by grind, color_at (q + 1) r hr_lt]
+      have : v + g + 1 = h * (q + 1) + r := by grind
+      rw [this, color_at (q + 1) r hr_lt]
     exact endgame_witness (Nat.mod_lt _ (by grind)) 0 1 (g + 1)
       (by simp) (by simp) (by simp) rfl
       (by rw [hcv1]; change ((r + 1) % 3 + (3 - q % 3)) % 3 =
             ((r % 3 + (3 - q % 3)) % 3 + 1) % 3; omega)
-      (by rw [show v + (g + 1) = v + g + 1 from by ring, hcvg1]
+      (by have : v + (g + 1) = v + g + 1 := by ring
+          rw [this, hcvg1]
           change (r % 3 + (3 - (q + 1) % 3)) % 3 =
             ((r % 3 + (3 - q % 3)) % 3 + 2) % 3; omega)
 
@@ -1931,8 +1938,10 @@ private lemma isUnit_intCast_of_natAbs_coprime {n : ℕ} {b : ℤ}
   have hu : IsUnit (b.natAbs : ZMod n) :=
     (ZMod.isUnit_iff_coprime _ _).mpr h
   rcases Int.natAbs_eq b with hb | hb
-  · rwa [show (Int.cast b : ZMod n) = ↑b.natAbs from by rw [hb]; simp]
-  · rw [show (Int.cast b : ZMod n) = -↑b.natAbs from by rw [hb]; simp]; exact hu.neg
+  · have : (Int.cast b : ZMod n) = ↑b.natAbs := by rw [hb]; simp
+    rwa [this]
+  · have : (Int.cast b : ZMod n) = -↑b.natAbs := by rw [hb]; simp
+    rw [this]; exact hu.neg
 
 /-- When gcd(b, m) = 1, there exists 2 ≤ g ≤ m - 2 with gb ≡ b - a (mod m),
     and zmod_set m a b = (image of {0,1,g,g+1} under ×b). -/
@@ -2147,10 +2156,11 @@ private lemma addOrderOf_b_eq {m : ℕ} {b : ℤ} {d₁ : ℕ} (hm : 0 < m)
     addOrderOf (b : ZMod m) = m / d₁ := by
   have key : addOrderOf (b.natAbs : ZMod m) = m / d₁ := by
     rw [ZMod.addOrderOf_coe b.natAbs (by grind), Nat.gcd_comm, hd1_def]
-  rcases Int.natAbs_eq b with h | h <;>
-    [rw [show (b : ZMod m) = ↑b.natAbs from by rw [h]; simp];
-     rw [show (b : ZMod m) = -↑b.natAbs from by rw [h]; simp, addOrderOf_neg]] <;>
-    exact key
+  rcases Int.natAbs_eq b with h | h
+  · have : (b : ZMod m) = (b.natAbs : ZMod m) := by rw [h]; simp
+    rw [this]; exact key
+  · have : (b : ZMod m) = -(b.natAbs : ZMod m) := by rw [h]; simp
+    rw [this, addOrderOf_neg]; exact key
 
 private lemma b_zero_mod_d1 {m : ℕ} {b : ℤ} {d₁ : ℕ}
     (hd1_def : Nat.gcd b.natAbs m = d₁) [NeZero d₁] :
@@ -2645,7 +2655,9 @@ lemma case_two_d1_even_e1_odd (hm : m ≥ 289)
     have hd₂_dvd_diff : d₂ ∣ (e₁ - 2) :=
       (ZMod.natCast_eq_zero_iff _ _).mp hval_eq.symm
     have hd₂_dvd_2 : d₂ ∣ 2 := by
-      have h := Nat.dvd_sub hd₂_dvd_e₁ hd₂_dvd_diff; rwa [show e₁ - (e₁ - 2) = 2 from by grind] at h
+      have h := Nat.dvd_sub hd₂_dvd_e₁ hd₂_dvd_diff
+      have h2 : e₁ - (e₁ - 2) = 2 := by grind
+      rwa [h2] at h
     have hd₂_eq2 : d₂ = 2 := by have := Nat.le_of_dvd (by grind) hd₂_dvd_2; grind
     obtain ⟨k, hk⟩ := hd₂_dvd_e₁; obtain ⟨l, hl⟩ := he1_odd; grind
   -- Define coloring and prove polychromaticity via orbit helper
@@ -2796,7 +2808,8 @@ private lemma basePattern_consec_boundary {e₁ j : ℕ}
     push_neg at hj1_wrap
     have hj_eq : j = e₁ - 1 := by grind
     subst hj_eq
-    rw [show e₁ - 1 + 1 = e₁ from by grind, Nat.mod_self] at hdiff ⊢
+    have : e₁ - 1 + 1 = e₁ := by grind
+    rw [this, Nat.mod_self] at hdiff ⊢
     grind [basePattern, intervalColors]
 
 /-- Combined: for any j, {basePattern(j), basePattern(j+1 mod e₁)} is the
@@ -2810,7 +2823,9 @@ private lemma basePattern_consec_pair {e₁ j : ℕ}
     have hj1 : j + 1 < e₁ := by
       by_contra! h
       have : j = e₁ - 1 := by grind
-      subst this; rw [show e₁ - 1 + 1 = e₁ from by grind, Nat.mod_self] at hsame
+      subst this
+      have : e₁ - 1 + 1 = e₁ := by grind
+      rw [this, Nat.mod_self] at hsame
       grind [whichInterval, case2d_u, case2d_v]
     rw [Nat.mod_eq_of_lt hj1]
     exact (basePattern_consec_same_interval (by rwa [Nat.mod_eq_of_lt hj1] at hsame)).ge
@@ -3077,8 +3092,8 @@ private lemma pos_shift_one {n : ℕ} [NeZero n] (j : ZMod n) (c : ℕ) :
 /-- (j + (S + V) % n) % n = ((j + S % n) % n + V) % n -/
 private lemma pos_shift_succ' (j S V n : ℕ) :
     (j + (S + V) % n) % n = ((j + S % n) % n + V) % n := by
-  rw [Nat.add_mod_mod, show j + (S + V) = j + S + V from by ring,
-      ← Nat.mod_add_mod (j + S) n V, (Nat.add_mod_mod j S n).symm]
+  have h1 : j + (S + V) = j + S + V := by ring
+  rw [Nat.add_mod_mod, h1, ← Nat.mod_add_mod (j + S) n V, (Nat.add_mod_mod j S n).symm]
 
 /-- Wrap case: if (S + V) % n = k₀ % n, then
     (j + k₀) % n = ((j + S % n) % n + V) % n -/
